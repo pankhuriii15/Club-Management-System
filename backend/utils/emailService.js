@@ -19,6 +19,15 @@ if (isEmailConfigured) {
       pass: process.env.EMAIL_PASS
     }
   });
+
+  // Verify SMTP connection
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error("SMTP Verify Error:", error);
+    } else {
+      console.log("✅ SMTP Server is ready");
+    }
+  });
 }
 
 /**
@@ -39,9 +48,11 @@ const sendEmail = async ({ to, subject, text, html }) => {
       console.log(`Email sent successfully: ${info.messageId}`);
       return info;
     } catch (error) {
-      console.error(`Error sending email to ${to}:`, error.message);
-      return null;
-    }
+  console.error("========== EMAIL ERROR ==========");
+  console.error(error);
+  console.error("================================");
+  return null;
+}
   } else {
     console.log('\n--- EMAIL NOTIFICATION SIMULATION ---');
     console.log(`TO:      ${to}`);
