@@ -44,4 +44,10 @@ const registrationSchema = new mongoose.Schema({
   timestamps: true
 });
 
+
+
+registrationSchema.index({ userId: 1, clubId: 1 });
+registrationSchema.index({ userId: 1, eventId: 1 });
+registrationSchema.index({ status: 1 });
+
 module.exports = mongoose.model('Registration', registrationSchema);

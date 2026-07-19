@@ -45,15 +45,17 @@ const registerClub = async (req, res) => {
       applicationDetails: applicationDetails || { reason: '', skills: '' }
     });
 
-    // Send confirmation email
-    const student = await User.findById(req.user._id);
-    await sendRegistrationConfirmationEmail(student, club.name, true);
+    // Send confirmation email in background
+const student = await User.findById(req.user._id);
 
-    res.status(201).json({
-      success: true,
-      message: 'Registration request created successfully',
-      data: registration
-    });
+sendRegistrationConfirmationEmail(student, club.name, true)
+  .catch(err => console.error(err));
+
+res.status(201).json({
+  success: true,
+  message: 'Registration request created successfully',
+  data: registration
+});
 
   } catch (error) {
     console.error('Register club error:', error);
@@ -273,14 +275,14 @@ const updateRegistrationStatus = async (req, res) => {
     if (status === 'Approved' || status === 'Selected') {
       // If club approval with interview details, send interview email
       if (isClub && interviewDetails && (interviewDetails.venue || interviewDetails.date)) {
-        await sendInterviewDetailsEmail(student, itemName, interviewDetails);
+         sendInterviewDetailsEmail(student, itemName, interviewDetails);
       } else {
-        await sendApprovalEmail(student, itemName, isClub);
+        sendApprovalEmail(student, itemName, isClub);
       }
     } else if (status === 'Rejected') {
-      await sendRejectionEmail(student, itemName, isClub, remarks);
+      sendRejectionEmail(student, itemName, isClub, remarks);
     } else if (status === 'Shortlisted') {
-      await sendShortlistEmail(student, itemName, isClub, remarks);
+      sendShortlistEmail(student, itemName, isClub, remarks);
     }
 
     res.json({
