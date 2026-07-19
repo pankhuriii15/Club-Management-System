@@ -8,6 +8,7 @@ import {
   Users, Calendar, Heart, FileText, CreditCard, User, 
   Plus, Edit, Trash2, Check, X, Mail, Send, Award, DollarSign, BarChart2, Settings
 } from 'lucide-react';
+import './Dashboard.css';
 
 const Dashboard = () => {
   const { user, isStudent, isCoordinator, loading: authLoading } = useAuth();
@@ -104,20 +105,6 @@ const Dashboard = () => {
           )}
         </div>
       </div>
-
-      <style>{`
-        @media (min-width: 992px) {
-          .dashboard-grid {
-            grid-template-columns: 260px 1fr !important;
-          }
-          .sidebar-col {
-            position: sticky;
-            top: 24px;
-            height: max-content;
-            align-self: start;
-          }
-        }
-      `}</style>
     </div>
   );
 };

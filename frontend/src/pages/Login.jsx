@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { Lock, Mail, User, Phone, GraduationCap, ArrowRight, Layers, Eye, EyeOff } from 'lucide-react';
 import api from '../services/api';
 import loginIllustration from '../assets/login_illustration.png';
+import './Login.css';
 
 const Login = () => {
   const { login, register } = useAuth();
@@ -97,56 +98,6 @@ const Login = () => {
 
   return (
     <div style={{ minHeight: '90vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', position: 'relative' }}>
-      {/* CSS Styles for responsive layout */}
-      <style>{`
-        .login-split-container {
-          display: flex;
-          flex-direction: row;
-          width: 100%;
-          max-width: 1000px;
-          min-height: 650px;
-          border-radius: 24px;
-          overflow: hidden;
-          box-shadow: 0 20px 50px rgba(15, 48, 87, 0.1);
-          border: 1px solid rgba(15, 48, 87, 0.08);
-          background: #ffffff;
-          position: relative;
-          z-index: 10;
-        }
-        .login-form-column {
-          flex: 1.2;
-          padding: 40px 48px;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-        }
-        .login-illustration-column {
-          flex: 0.8;
-          background: linear-gradient(135deg, #0f3057 0%, #8c1d40 100%);
-          color: #ffffff;
-          padding: 48px;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          text-align: center;
-          position: relative;
-        }
-        @media (max-width: 899px) {
-          .login-split-container {
-            flex-direction: column;
-            max-width: 480px;
-            min-height: auto;
-          }
-          .login-illustration-column {
-            display: none;
-          }
-          .login-form-column {
-            padding: 32px 24px;
-          }
-        }
-      `}</style>
-
       {/* Glow elements */}
       <div className="glow-bubble glow-bubble-1"></div>
       <div className="glow-bubble glow-bubble-2"></div>

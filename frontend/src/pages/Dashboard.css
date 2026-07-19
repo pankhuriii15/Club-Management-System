@@ -1,0 +1,11 @@
+@media (min-width: 992px) {
+  .dashboard-grid {
+    grid-template-columns: 260px 1fr !important;
+  }
+  .sidebar-col {
+    position: sticky;
+    top: 24px;
+    height: max-content;
+    align-self: start;
+  }
+}

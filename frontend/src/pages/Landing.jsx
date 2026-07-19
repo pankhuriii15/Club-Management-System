@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Calendar, Users, Award, Shield, ChevronRight, Compass, Sparkles, Heart, Info } from 'lucide-react';
 import heroImg from '../assets/hero.png';
+import './Landing.css';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -368,22 +369,6 @@ const Landing = () => {
         </div>
       </footer>
 
-      <style>{`
-        .club-explorer-layout {
-          grid-template-columns: 1fr;
-        }
-        .hero-split-container {
-          grid-template-columns: 1fr;
-        }
-        @media (min-width: 992px) {
-          .club-explorer-layout {
-            grid-template-columns: 260px 1fr !important;
-          }
-          .hero-split-container {
-            grid-template-columns: 1.2fr 1fr !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };
