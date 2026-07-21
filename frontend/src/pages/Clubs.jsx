@@ -16,7 +16,7 @@ const Clubs = () => {
         const res = await api.get('/clubs');
         if (res.data.success) {
           setClubs(res.data.data);
-          
+
           // Dynamically compute unique categories for the dropdown selector filter
           const cats = ['All', ...new Set(res.data.data.map(c => c.category))];
           setCategories(cats);
@@ -32,8 +32,8 @@ const Clubs = () => {
 
   // Filter lists based on search terms and category
   const filteredClubs = clubs.filter(club => {
-    const matchesSearch = club.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          club.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = club.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      club.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || club.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -52,7 +52,7 @@ const Clubs = () => {
         </header>
 
         {/* Filter bars */}
-        <div 
+        <div
           className="glass-panel"
           style={{
             padding: '16px 24px',
@@ -65,9 +65,9 @@ const Clubs = () => {
         >
           <div style={{ flex: 1, minWidth: '240px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(15, 48, 87, 0.03)', borderRadius: '10px', padding: '2px 14px', border: '1px solid var(--panel-border)' }}>
             <Search size={18} style={{ color: 'var(--text-muted)' }} />
-            <input 
-              type="text" 
-              placeholder="Search clubs by name or keywords..." 
+            <input
+              type="text"
+              placeholder="Search clubs by name or keywords..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ background: 'none', border: 'none', color: 'var(--text-primary)', outline: 'none', width: '100%', padding: '10px 0' }}
@@ -100,8 +100,8 @@ const Clubs = () => {
         ) : (
           <div className="grid-container">
             {filteredClubs.map((club) => (
-              <div 
-                key={club._id} 
+              <div
+                key={club._id}
                 className="glass-card animate-fade-in"
                 style={{
                   padding: '24px',
@@ -114,10 +114,10 @@ const Clubs = () => {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
                     {club.logo ? (
-                      <img 
-                        src={club.logo} 
-                        alt={club.name} 
-                        style={{ width: '50px', height: '50px', borderRadius: '12px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} 
+                      <img
+                        src={club.logo}
+                        alt={club.name}
+                        style={{ width: '50px', height: '50px', borderRadius: '12px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
                       />
                     ) : (
                       <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>
@@ -126,7 +126,7 @@ const Clubs = () => {
                     )}
                     <div>
                       <h3 style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'Outfit' }}>{club.name}</h3>
-                      <span 
+                      <span
                         style={{
                           background: 'rgba(255, 255, 255, 0.1)',
                           padding: '2px 8px',
@@ -147,16 +147,16 @@ const Clubs = () => {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
-                  <Link 
-                    to={`/clubs/${club._id}`} 
-                    className="btn-secondary" 
-                    style={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      height: '36px', 
-                      padding: '0 16px', 
-                      fontSize: '0.82rem', 
+                  <Link
+                    to={`/clubs/${club._id}`}
+                    className="btn-secondary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '36px',
+                      padding: '0 16px',
+                      fontSize: '0.82rem',
                       borderRadius: '20px',
                       textDecoration: 'none'
                     }}
