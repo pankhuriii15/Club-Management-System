@@ -36,26 +36,30 @@ const registerClub = async (req, res) => {
       return res.status(400).json({ success: false, message: 'You have already submitted a registration request for this club' });
     }
 
-    // Create registration with application details
-    const registration = await Registration.create({
-      userId: req.user._id,
-      clubId,
-      status: 'Pending',
-      remarks: remarks || '',
-      applicationDetails: applicationDetails || { reason: '', skills: '' }
+    // Create registration with application details — run create + user lookup in parallel
+    const [registration, student] = await Promise.all([
+      Registration.create({
+        userId: req.user._id,
+        clubId,
+        status: 'Pending',
+        remarks: remarks || '',
+        applicationDetails: applicationDetails || { reason: '', skills: '' }
+      }),
+      User.findById(req.user._id)
+    ]);
+
+    // Send response immediately
+    res.status(201).json({
+      success: true,
+      message: 'Registration request created successfully',
+      data: registration
     });
 
-    // Send confirmation email in background
-const student = await User.findById(req.user._id);
-
-sendRegistrationConfirmationEmail(student, club.name, true)
-  .catch(err => console.error(err));
-
-res.status(201).json({
-  success: true,
-  message: 'Registration request created successfully',
-  data: registration
-});
+    // Fire email completely in background (after response is sent)
+    if (student) {
+      sendRegistrationConfirmationEmail(student, club.name, true)
+        .catch(err => console.error('Club registration email error:', err));
+    }
 
   } catch (error) {
     console.error('Register club error:', error);
@@ -89,23 +93,29 @@ const registerEvent = async (req, res) => {
       return res.status(400).json({ success: false, message: 'You have already submitted a registration request for this event' });
     }
 
-    // Free registration (payments disabled)
-    const registration = await Registration.create({
-      userId: req.user._id,
-      eventId,
-      status: 'Registered',
-      remarks: remarks || ''
-    });
+    // Free registration (payments disabled) — run create + user lookup in parallel
+    const [registration, student] = await Promise.all([
+      Registration.create({
+        userId: req.user._id,
+        eventId,
+        status: 'Registered',
+        remarks: remarks || ''
+      }),
+      User.findById(req.user._id)
+    ]);
 
-    // Send confirmation email
-    const student = await User.findById(req.user._id);
-    await sendRegistrationConfirmationEmail(student, event.title, false);
-
+    // Send response immediately
     res.status(201).json({
       success: true,
       message: 'Registration request created successfully',
       data: registration
     });
+
+    // Fire email completely in background (after response is sent)
+    if (student) {
+      sendRegistrationConfirmationEmail(student, event.title, false)
+        .catch(err => console.error('Event registration email error:', err));
+    }
 
   } catch (error) {
     console.error('Register event error:', error);
@@ -134,7 +144,7 @@ const getRegistrations = async (req, res) => {
         const club = await Club.findOne({ coordinatorId: req.user._id });
         targetClubId = club ? club._id : null;
       }
-      
+
       if (!targetClubId) {
         return res.json({ success: true, data: [] });
       }
@@ -275,14 +285,18 @@ const updateRegistrationStatus = async (req, res) => {
     if (status === 'Approved' || status === 'Selected') {
       // If club approval with interview details, send interview email
       if (isClub && interviewDetails && (interviewDetails.venue || interviewDetails.date)) {
-         sendInterviewDetailsEmail(student, itemName, interviewDetails);
+        sendInterviewDetailsEmail(student, itemName, interviewDetails)
+          .catch(err => console.error('Interview email error:', err));
       } else {
-        sendApprovalEmail(student, itemName, isClub);
+        sendApprovalEmail(student, itemName, isClub)
+          .catch(err => console.error('Approval email error:', err));
       }
     } else if (status === 'Rejected') {
-      sendRejectionEmail(student, itemName, isClub, remarks);
+      sendRejectionEmail(student, itemName, isClub, remarks)
+        .catch(err => console.error('Rejection email error:', err));
     } else if (status === 'Shortlisted') {
-      sendShortlistEmail(student, itemName, isClub, remarks);
+      sendShortlistEmail(student, itemName, isClub, remarks)
+        .catch(err => console.error('Shortlist email error:', err));
     }
 
     res.json({

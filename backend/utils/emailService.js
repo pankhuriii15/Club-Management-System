@@ -17,7 +17,13 @@ if (isEmailConfigured) {
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
-    }
+    },
+    pool: true,              // Reuse SMTP connections (avoids repeated TLS handshakes)
+    maxConnections: 3,       // Up to 3 parallel connections
+    maxMessages: 50,         // Reuse each connection for up to 50 messages
+    connectionTimeout: 5000, // 5s connection timeout
+    greetingTimeout: 5000,   // 5s greeting timeout
+    socketTimeout: 10000     // 10s socket timeout
   });
 
   // Verify SMTP connection
