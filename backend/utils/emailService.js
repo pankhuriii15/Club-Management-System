@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const https = require('https'); // Built-in Node.js module for HTTP requests
 
 // Initialize Nodemailer transporter
 let transporter;
@@ -36,37 +37,114 @@ if (isEmailConfigured) {
   });
 }
 
+// Parse sender string like '"Name" <email@example.com>'
+const parseSender = (fromStr) => {
+  if (!fromStr) return { name: 'EduEvent Manager', email: 'noreply@eduevent.com' };
+  const match = fromStr.match(/^(?:"?([^"]*)"?\s)?<?([^>]+)>?$/);
+  if (match) {
+    return {
+      name: match[1]?.trim() || 'EduEvent Manager',
+      email: match[2]?.trim()
+    };
+  }
+  return { name: 'EduEvent Manager', email: fromStr };
+};
+
+// Helper function to send email via Brevo REST API (HTTPS Port 443)
+const sendViaBrevoAPI = (apiKey, payload) => {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(payload);
+    const options = {
+      hostname: 'api.brevo.com',
+      port: 443,
+      path: '/v3/smtp/email',
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json',
+        'content-length': Buffer.byteLength(data)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            resolve({ messageId: 'unknown', body });
+          }
+        } else {
+          reject(new Error(`Brevo API responded with status ${res.statusCode}: ${body}`));
+        }
+      });
+    });
+
+    req.on('error', (err) => reject(err));
+    req.write(data);
+    req.end();
+  });
+};
+
 /**
  * Send general email
  */
 const sendEmail = async ({ to, subject, text, html }) => {
-  const mailOptions = {
-    from: process.env.EMAIL_FROM || '"EduEvent Manager" <noreply@eduevent.com>',
-    to,
-    subject,
-    text,
-    html
-  };
+  const fromStr = process.env.EMAIL_FROM || '"EduEvent Manager" <noreply@eduevent.com>';
 
+  // 1. Try Brevo HTTP API first if BREVO_API_KEY is configured (works on Render Free tier)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const sender = parseSender(fromStr);
+      const result = await sendViaBrevoAPI(process.env.BREVO_API_KEY, {
+        sender,
+        to: [{ email: to }],
+        subject,
+        htmlContent: html || text,
+        textContent: text || html
+      });
+      console.log(`Email sent successfully via Brevo HTTP API: ${result.messageId}`);
+      return result;
+    } catch (error) {
+      console.error("========== BREVO API EMAIL ERROR ==========");
+      console.error(error.message);
+      console.error("==========================================");
+      return null;
+    }
+  }
+
+  // 2. Fallback to SMTP (Gmail/Google keys for localhost)
   if (transporter) {
+    const mailOptions = {
+      from: fromStr,
+      to,
+      subject,
+      text,
+      html
+    };
+
     try {
       const info = await transporter.sendMail(mailOptions);
-      console.log(`Email sent successfully: ${info.messageId}`);
+      console.log(`Email sent successfully via SMTP: ${info.messageId}`);
       return info;
     } catch (error) {
-  console.error("========== EMAIL ERROR ==========");
-  console.error(error);
-  console.error("================================");
-  return null;
-}
-  } else {
-    console.log('\n--- EMAIL NOTIFICATION SIMULATION ---');
-    console.log(`TO:      ${to}`);
-    console.log(`SUBJECT: ${subject}`);
-    console.log(`BODY:    ${text || 'HTML Content (see logs)'}`);
-    console.log('-------------------------------------\n');
-    return { simulated: true };
+      console.error("========== SMTP EMAIL ERROR ==========");
+      console.error(error);
+      console.error("======================================");
+      return null;
+    }
   }
+
+  // 3. Fallback to simulation
+  console.log('\n--- EMAIL NOTIFICATION SIMULATION ---');
+  console.log(`TO:      ${to}`);
+  console.log(`SUBJECT: ${subject}`);
+  console.log(`BODY:    ${text || 'HTML Content (see logs)'}`);
+  console.log('-------------------------------------\n');
+  return { simulated: true };
 };
 
 /**
