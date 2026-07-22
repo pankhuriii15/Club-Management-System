@@ -18,7 +18,7 @@ const registrationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pending', 'Approved', 'Rejected', 'Shortlisted', 'Selected', 'Registered'],
+    enum: ['Pending', 'Approved', 'Rejected'],
     default: 'Pending'
   },
   remarks: {
@@ -34,6 +34,7 @@ const registrationSchema = new mongoose.Schema({
     date: { type: String, default: '' },
     time: { type: String, default: '' },
     location: { type: String, default: '' },
+    description: { type: String, default: '' },
     notes: { type: String, default: '' }
   },
   registrationDate: {

@@ -4,10 +4,9 @@ const Event = require('../models/Event');
 const User = require('../models/User');
 const {
   sendRegistrationConfirmationEmail,
-  sendApprovalEmail,
+  sendInterviewDetailsEmail,
   sendRejectionEmail,
-  sendShortlistEmail,
-  sendInterviewDetailsEmail
+  sendEventApprovalEmail
 } = require('../utils/emailService');
 
 // @desc Register for a Club (Application-based)
@@ -93,12 +92,12 @@ const registerEvent = async (req, res) => {
       return res.status(400).json({ success: false, message: 'You have already submitted a registration request for this event' });
     }
 
-    // Free registration (payments disabled) — run create + user lookup in parallel
+    // Create event registration as Pending (requires President approval)
     const [registration, student] = await Promise.all([
       Registration.create({
         userId: req.user._id,
         eventId,
-        status: 'Registered',
+        status: 'Pending',
         remarks: remarks || ''
       }),
       User.findById(req.user._id)
@@ -107,11 +106,11 @@ const registerEvent = async (req, res) => {
     // Send response immediately
     res.status(201).json({
       success: true,
-      message: 'Registration request created successfully',
+      message: 'Registration request submitted successfully. Awaiting President approval.',
       data: registration
     });
 
-    // Fire email completely in background (after response is sent)
+    // Fire confirmation email completely in background (after response is sent)
     if (student) {
       sendRegistrationConfirmationEmail(student, event.title, false)
         .catch(err => console.error('Event registration email error:', err));
@@ -189,12 +188,13 @@ const getRegistrations = async (req, res) => {
 
 // @desc Update registration approval status & notify student
 // @route PUT /api/registrations/:id/status
-// @access Private/Staff
+// @access Private/Staff (President of the club)
 const updateRegistrationStatus = async (req, res) => {
   const { status, remarks, interviewDetails } = req.body;
 
-  if (!status) {
-    return res.status(400).json({ success: false, message: 'Status is required' });
+  // Only Approved and Rejected are valid status transitions
+  if (!status || !['Approved', 'Rejected'].includes(status)) {
+    return res.status(400).json({ success: false, message: 'Status must be either Approved or Rejected' });
   }
 
   try {
@@ -203,6 +203,7 @@ const updateRegistrationStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Registration record not found' });
     }
 
+    // Authorization: only the President (admin with clubId) of the relevant club can approve/reject
     if (req.user.role === 'coordinator' || (req.user.role === 'admin' && req.user.clubId)) {
       let authorized = false;
       let targetClubId = req.user.clubId ? req.user.clubId.toString() : '';
@@ -239,17 +240,28 @@ const updateRegistrationStatus = async (req, res) => {
       }
     }
 
+    // Validate that required interview fields are present for Club Applications on approval
+    if (status === 'Approved' && registration.clubId) {
+      if (!interviewDetails || !interviewDetails.venue || !interviewDetails.date || !interviewDetails.time) {
+        return res.status(400).json({
+          success: false,
+          message: 'Interview details (Venue, Date, and Time) are required to approve a club application'
+        });
+      }
+    }
+
     // Update state fields
     registration.status = status;
     registration.remarks = remarks || '';
 
-    // Save interview details if provided (on approval)
-    if (interviewDetails && (status === 'Approved' || status === 'Selected')) {
+    // Save interview details if provided (on approval for club applications)
+    if (interviewDetails && status === 'Approved' && registration.clubId) {
       registration.interviewDetails = {
         venue: interviewDetails.venue || '',
         date: interviewDetails.date || '',
         time: interviewDetails.time || '',
         location: interviewDetails.location || '',
+        description: interviewDetails.description || '',
         notes: interviewDetails.notes || ''
       };
     }
@@ -257,7 +269,7 @@ const updateRegistrationStatus = async (req, res) => {
     const updated = await registration.save();
 
     // If club registration is approved, add the user to the club's members array
-    if ((status === 'Approved' || status === 'Selected') && registration.clubId) {
+    if (status === 'Approved' && registration.clubId) {
       const club = await Club.findById(registration.clubId);
       if (club && !club.members.includes(registration.userId)) {
         club.members.push(registration.userId);
@@ -282,21 +294,22 @@ const updateRegistrationStatus = async (req, res) => {
     }
 
     // Send transactional status emails based on new status
-    if (status === 'Approved' || status === 'Selected') {
-      // If club approval with interview details, send interview email
-      if (isClub && interviewDetails && (interviewDetails.venue || interviewDetails.date)) {
-        sendInterviewDetailsEmail(student, itemName, interviewDetails)
+    if (status === 'Approved') {
+      if (registration.clubId) {
+        // Send interview/shortlist email for club applications
+        sendInterviewDetailsEmail(student, itemName, registration.interviewDetails)
           .catch(err => console.error('Interview email error:', err));
-      } else {
-        sendApprovalEmail(student, itemName, isClub)
-          .catch(err => console.error('Approval email error:', err));
+      } else if (registration.eventId) {
+        // Send event registration success confirmation email
+        const event = await Event.findById(registration.eventId);
+        if (event) {
+          sendEventApprovalEmail(student, event)
+            .catch(err => console.error('Event approval email error:', err));
+        }
       }
     } else if (status === 'Rejected') {
       sendRejectionEmail(student, itemName, isClub, remarks)
         .catch(err => console.error('Rejection email error:', err));
-    } else if (status === 'Shortlisted') {
-      sendShortlistEmail(student, itemName, isClub, remarks)
-        .catch(err => console.error('Shortlist email error:', err));
     }
 
     res.json({

@@ -285,39 +285,44 @@ const sendEventRegistrationSuccessEmail = async ({ student, event, club, registr
  * Send interview/selection details email when club application is approved
  */
 const sendInterviewDetailsEmail = async (student, clubName, interviewDetails) => {
-  const subject = `Interview/Selection Details - ${clubName}`;
-  const { venue, date, time, location, notes } = interviewDetails;
+  const subject = `Shortlisted for Next Round - ${clubName}`;
+  const { venue, date, time, location, description, notes } = interviewDetails;
   
-  const text = `Congratulations ${student.name}!\n\nYour application to join "${clubName}" has been APPROVED!\n\nInterview/Selection Details:\n- Venue: ${venue}\n- Date: ${date}\n- Time: ${time}\n- Location: ${location}\n${notes ? `- Additional Notes: ${notes}` : ''}\n\nPlease be on time and carry your college ID card.\n\nBest regards,\nEduEvent Manager Team`;
+  const text = `Congratulations ${student.name}!\n\nYour application to join "${clubName}" has been approved, and you have been shortlisted for the next round!\n\nInterview Details:\n- Venue: ${venue}\n- Date: ${date}\n- Time: ${time}\n${location ? `- Location Specifics: ${location}\n` : ''}- Description/Instructions: ${description || 'N/A'}\n${notes ? `- Additional Notes: ${notes}` : ''}\n\nPlease be on time and carry your college ID card.\n\nBest regards,\nEduEvent Manager Team`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-      <h2 style="color: #28a745; text-align: center;">🎉 Application Approved!</h2>
+      <h2 style="color: #28a745; text-align: center;">🎉 Shortlisted for Next Round!</h2>
       <p>Hello <strong>${student.name}</strong>,</p>
-      <p>We are excited to inform you that your application to join <strong>"${clubName}"</strong> has been <span style="background-color: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-weight: bold;">Approved</span>.</p>
+      <p>We are excited to inform you that your application to join <strong>"${clubName}"</strong> has been approved, and you have been shortlisted for the next round of selection.</p>
       
       <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 20px 0;">
         <h3 style="margin-top: 0; color: #495057; border-bottom: 1px solid #ddd; padding-bottom: 8px;">📋 Interview / Selection Details</h3>
         <table style="width: 100%; border-collapse: collapse;">
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
             <td style="width: 35%;"><strong>📍 Venue:</strong></td>
-            <td>${venue || 'TBD'}</td>
+            <td>${venue}</td>
           </tr>
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
             <td><strong>📅 Date:</strong></td>
-            <td>${date || 'TBD'}</td>
+            <td>${date}</td>
           </tr>
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
             <td><strong>🕐 Time:</strong></td>
-            <td>${time || 'TBD'}</td>
+            <td>${time}</td>
           </tr>
+          ${location ? `
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
             <td><strong>📌 Location:</strong></td>
-            <td>${location || 'TBD'}</td>
+            <td>${location}</td>
+          </tr>` : ''}
+          <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
+            <td><strong>📝 Description/Instructions:</strong></td>
+            <td>${description || 'None provided'}</td>
           </tr>
           ${notes ? `
           <tr style="height: 36px;">
-            <td><strong>📝 Notes:</strong></td>
+            <td><strong>📝 Additional Notes:</strong></td>
             <td>${notes}</td>
           </tr>` : ''}
         </table>
@@ -334,6 +339,62 @@ const sendInterviewDetailsEmail = async (student, clubName, interviewDetails) =>
   return await sendEmail({ to: student.email, subject, text, html });
 };
 
+/**
+ * Send event registration confirmation email when event application is approved
+ */
+const sendEventApprovalEmail = async (student, event) => {
+  const subject = `Event Registration Confirmed! - ${event.title}`;
+  
+  // Format Date
+  const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const dateStr = new Date(event.date).toLocaleDateString('en-US', dateOptions);
+  const timeStr = new Date(event.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+  const text = `Hello ${student.name},\n\nCongratulations! Your registration has been successfully confirmed. We look forward to seeing you at the event.\n\nEvent Details:\n- Event Name: ${event.title}\n- Venue: ${event.venue}\n- Date: ${dateStr}\n- Time: ${timeStr}\n${event.description ? `\nDescription:\n${event.description}\n` : ''}\nBest regards,\nEduEvent Manager Team`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+      <h2 style="color: #28a745; text-align: center;">🎉 Registration Confirmed!</h2>
+      <p>Hello <strong>${student.name}</strong>,</p>
+      <p>Congratulations! Your registration has been successfully confirmed. We look forward to seeing you at the event.</p>
+      
+      <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 20px 0;">
+        <h3 style="margin-top: 0; color: #495057; border-bottom: 1px solid #ddd; padding-bottom: 8px;">📅 Event Details</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
+            <td style="width: 35%;"><strong>🎟️ Event Name:</strong></td>
+            <td><strong>${event.title}</strong></td>
+          </tr>
+          <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
+            <td><strong>📍 Venue:</strong></td>
+            <td>${event.venue}</td>
+          </tr>
+          <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
+            <td><strong>📅 Date:</strong></td>
+            <td>${dateStr}</td>
+          </tr>
+          <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
+            <td><strong>🕐 Time:</strong></td>
+            <td>${timeStr}</td>
+          </tr>
+        </table>
+      </div>
+
+      ${event.description ? `
+      <div style="margin: 20px 0;">
+        <strong>Description:</strong>
+        <p style="color: #555; line-height: 1.5; font-size: 0.92rem; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee;">${event.description}</p>
+      </div>
+      ` : ''}
+
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+      <p style="font-size: 12px; color: #777; text-align: center;">This is an automated message from EduEvent Manager.</p>
+    </div>
+  `;
+
+  return await sendEmail({ to: student.email, subject, text, html });
+};
+
 module.exports = {
   sendEmail,
   sendRegistrationConfirmationEmail,
@@ -342,5 +403,6 @@ module.exports = {
   sendRejectionEmail,
   sendShortlistEmail,
   sendEventRegistrationSuccessEmail,
-  sendInterviewDetailsEmail
+  sendInterviewDetailsEmail,
+  sendEventApprovalEmail
 };

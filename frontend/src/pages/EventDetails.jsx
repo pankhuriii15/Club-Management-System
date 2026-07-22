@@ -62,8 +62,8 @@ const EventDetails = () => {
     try {
       const res = await api.post('/registerEvent', { eventId: event._id });
       if (res.data.success) {
-        showSuccess('Registration request created! Confirmation email sent.');
-        setRegStatus(res.data.data?.status || 'Registered');
+        showSuccess('Registration request submitted! Awaiting President approval.');
+        setRegStatus(res.data.data?.status || 'Pending');
       }
     } catch (err) {
       showError(err.response?.data?.message || 'Error registering for event');
@@ -187,7 +187,7 @@ const EventDetails = () => {
 const statusBadgeStyle = (status) => {
   let bg = 'rgba(255,255,255,0.1)';
   let color = '#fff';
-  if (status === 'Approved' || status === 'Selected' || status === 'Registered') {
+  if (status === 'Approved') {
     bg = '#2ecc71';
     color = '#fff';
   } else if (status === 'Pending') {
@@ -195,9 +195,6 @@ const statusBadgeStyle = (status) => {
     color = '#fff';
   } else if (status === 'Rejected') {
     bg = '#e74c3c';
-    color = '#fff';
-  } else if (status === 'Shortlisted') {
-    bg = '#3498db';
     color = '#fff';
   }
 

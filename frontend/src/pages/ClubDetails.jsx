@@ -531,7 +531,7 @@ const ClubDetails = () => {
 const statusBadgeStyle = (status) => {
   let bg = 'rgba(255,255,255,0.1)';
   let color = '#fff';
-  if (status === 'Approved' || status === 'Selected' || status === 'Registered') {
+  if (status === 'Approved') {
     bg = '#2ecc71';
     color = '#fff';
   } else if (status === 'Pending') {

@@ -310,7 +310,7 @@ const StudentOverview = ({ showSuccess, showError }) => {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginBottom: '40px' }}>
           {filteredEvents.map(evt => {
-            const isRegistered = registrations.some(r => r.eventId?._id === evt._id && r.status === 'Registered');
+            const existingReg = registrations.find(r => r.eventId?._id === evt._id);
             const isUpcoming = new Date(evt.date) >= now;
             
             return (
@@ -357,8 +357,10 @@ const StudentOverview = ({ showSuccess, showError }) => {
                       📅 {new Date(evt.date).toLocaleDateString()}
                     </span>
                     {isUpcoming && (
-                      isRegistered ? (
-                        <span style={{ fontSize: '0.75rem', color: '#2ecc71', fontWeight: 'bold' }}>✓ Registered</span>
+                      existingReg ? (
+                        <span style={{ fontSize: '0.75rem', color: existingReg.status === 'Approved' ? '#2ecc71' : existingReg.status === 'Rejected' ? '#e74c3c' : '#f1c40f', fontWeight: 'bold' }}>
+                          {existingReg.status === 'Pending' ? '⏳ Pending' : existingReg.status === 'Approved' ? '✓ Approved' : '✗ Rejected'}
+                        </span>
                       ) : (
                         <button 
                           onClick={(e) => handleRegisterEvent(e, evt)} 
@@ -416,7 +418,7 @@ const StudentOverview = ({ showSuccess, showError }) => {
                 >
                   Close
                 </button>
-                {new Date(selectedEvent.date) >= now && !registrations.some(r => r.eventId?._id === selectedEvent._id && r.status === 'Registered') && (
+                {new Date(selectedEvent.date) >= now && !registrations.some(r => r.eventId?._id === selectedEvent._id) && (
                   <button 
                     onClick={(e) => handleRegisterEvent(e, selectedEvent)} 
                     className="btn-primary" 
@@ -759,7 +761,7 @@ const StudentRegisteredEvents = ({ showError }) => {
       if (res.data.success) {
         // Filter: has an event and is in a confirmed/success status
         const eventRegs = res.data.data.filter(
-          (reg) => reg.eventId && ['Registered', 'Approved', 'Selected'].includes(reg.status)
+          (reg) => reg.eventId && ['Pending', 'Approved', 'Rejected'].includes(reg.status)
         );
         setRegistrations(eventRegs);
       }
@@ -1373,12 +1375,13 @@ const CoordinatorRegistrations = ({ type, showSuccess, showError }) => {
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedReg, setSelectedReg] = useState(null);
+  const [isApproving, setIsApproving] = useState(false);
   
   const [interviewDetails, setInterviewDetails] = useState({
     venue: '',
     date: '',
     time: '',
-    location: '',
+    description: '',
     notes: ''
   });
 
@@ -1413,13 +1416,14 @@ const CoordinatorRegistrations = ({ type, showSuccess, showError }) => {
           venue: '',
           date: '',
           time: '',
-          location: '',
+          description: '',
           notes: ''
         });
         setApproveModalOpen(true);
         return;
       } else {
         // Direct approval for event registrations without interview scheduler modal
+        setIsApproving(true);
         try {
           const res = await api.put(`/registrations/${id}/status`, {
             status: 'Approved',
@@ -1430,7 +1434,10 @@ const CoordinatorRegistrations = ({ type, showSuccess, showError }) => {
             fetchRegistrations();
           }
         } catch (err) {
-          showError('Failed to confirm event registration');
+          showError(err.response?.data?.message || 'Failed to confirm event registration');
+        } finally {
+          setIsApproving(false);
+          setSelectedReg(null);
         }
         return;
       }
@@ -1447,25 +1454,19 @@ const CoordinatorRegistrations = ({ type, showSuccess, showError }) => {
       return;
     }
 
-    // Direct update for Shortlisted
-    const remarks = window.prompt(`Enter optional review remarks/feedback for status: ${status}:`);
-    if (remarks === null) return;
-
-    try {
-      const res = await api.put(`/registrations/${id}/status`, { status, remarks });
-      if (res.data.success) {
-        showSuccess(`Application updated to ${status}! Notification email sent.`);
-        fetchRegistrations();
-      }
-    } catch (err) {
-      showError('Error updating status');
-    }
   };
 
   const handleApproveSubmit = async (e) => {
     e.preventDefault();
     if (!selectedReg) return;
 
+    // Validate fields on the frontend
+    if (!interviewDetails.venue || !interviewDetails.date || !interviewDetails.time || !interviewDetails.description) {
+      showError('Please fill in all required interview details (Venue, Date, Time, and Description/Instructions)');
+      return;
+    }
+
+    setIsApproving(true);
     try {
       const res = await api.put(`/registrations/${selectedReg._id}/status`, {
         status: 'Approved',
@@ -1473,13 +1474,15 @@ const CoordinatorRegistrations = ({ type, showSuccess, showError }) => {
         interviewDetails
       });
       if (res.data.success) {
-        showSuccess(`Application approved! Interview details emailed to ${selectedReg.userId?.email}`);
+        showSuccess(`Request approved! Interview details emailed to ${selectedReg.userId?.email}`);
         setApproveModalOpen(false);
         setSelectedReg(null);
         fetchRegistrations();
       }
     } catch (err) {
-      showError('Failed to approve registration');
+      showError(err.response?.data?.message || 'Failed to approve registration');
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -1600,17 +1603,27 @@ const CoordinatorRegistrations = ({ type, showSuccess, showError }) => {
                   </td>
                   <td style={tableCellStyle}>
                     <span style={getStatusBadgeStyle(reg.status)}>{reg.status}</span>
-                    {reg.status === 'Registered' && (
-                      <div style={{ fontSize: '0.7rem', color: '#2ecc71', marginTop: '2px', fontWeight: 'bold' }}>
-                        🎟️ Ticket Confirmed
-                      </div>
-                    )}
+                    
                   </td>
                   <td style={tableCellStyle}>
                     {reg.status === 'Pending' && (
                       <div style={{ display: 'flex', gap: '6px' }}>
-                        <button onClick={() => handleUpdateStatus(reg._id, 'Approved')} style={{ ...iconBtnStyle, color: '#2ecc71' }} title="Approve"><Check size={14} /></button>
-                        <button onClick={() => handleUpdateStatus(reg._id, 'Rejected')} style={{ ...iconBtnStyle, color: '#ff7675' }} title="Reject"><X size={14} /></button>
+                        <button 
+                          onClick={() => handleUpdateStatus(reg._id, 'Approved')} 
+                          style={{ ...iconBtnStyle, color: '#2ecc71' }} 
+                          title="Approve"
+                          disabled={isApproving}
+                        >
+                          {isApproving && selectedReg?._id === reg._id ? <span className="spinner-small"></span> : <Check size={14} />}
+                        </button>
+                        <button 
+                          onClick={() => handleUpdateStatus(reg._id, 'Rejected')} 
+                          style={{ ...iconBtnStyle, color: '#ff7675' }} 
+                          title="Reject"
+                          disabled={isApproving}
+                        >
+                          <X size={14} />
+                        </button>
                       </div>
                     )}
                   </td>
@@ -1626,10 +1639,22 @@ const CoordinatorRegistrations = ({ type, showSuccess, showError }) => {
         <div style={modalOverlayStyle}>
           <div className="glass-panel" style={{ width: '90%', maxWidth: '500px', padding: '30px' }}>
             <h3 style={{ fontFamily: 'Outfit', fontSize: '1.4rem', marginBottom: '20px', color: '#059669' }}>
-              Approve Application & Set Interview/Selection Details
+              Approve & Set Interview/Selection Details
             </h3>
 
             <form onSubmit={handleApproveSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={labelStyle}>Interview Venue</label>
+                <input 
+                  type="text" 
+                  className="glass-input" 
+                  placeholder="e.g. Audi 2, CS Seminar Hall" 
+                  value={interviewDetails.venue} 
+                  onChange={(e) => setInterviewDetails({ ...interviewDetails, venue: e.target.value })} 
+                  required 
+                />
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={labelStyle}>Interview Date</label>
@@ -1654,46 +1679,45 @@ const CoordinatorRegistrations = ({ type, showSuccess, showError }) => {
               </div>
 
               <div>
-                <label style={labelStyle}>Venue Name</label>
-                <input 
-                  type="text" 
-                  className="glass-input" 
-                  placeholder="e.g. Audi 2, CS Seminar Hall" 
-                  value={interviewDetails.venue} 
-                  onChange={(e) => setInterviewDetails({ ...interviewDetails, venue: e.target.value })} 
-                  required 
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Location Specifics</label>
-                <input 
-                  type="text" 
-                  className="glass-input" 
-                  placeholder="e.g. Block A, 3rd Floor" 
-                  value={interviewDetails.location} 
-                  onChange={(e) => setInterviewDetails({ ...interviewDetails, location: e.target.value })} 
-                  required 
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Additional Notes / Instructions</label>
+                <label style={labelStyle}>Description/Instructions</label>
                 <textarea 
                   className="glass-input" 
                   rows="3" 
-                  placeholder="Items to bring, preparation details..." 
+                  placeholder="Preparation details, what to bring, etc." 
+                  value={interviewDetails.description} 
+                  onChange={(e) => setInterviewDetails({ ...interviewDetails, description: e.target.value })}
+                  required
+                ></textarea>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Any additional notes (optional)</label>
+                <textarea 
+                  className="glass-input" 
+                  rows="2" 
+                  placeholder="e.g. Contact Coordinator if you cannot attend at this time." 
                   value={interviewDetails.notes} 
                   onChange={(e) => setInterviewDetails({ ...interviewDetails, notes: e.target.value })}
                 ></textarea>
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
-                <button type="button" onClick={() => { setApproveModalOpen(false); setSelectedReg(null); }} className="btn-secondary" style={{ padding: '8px 20px', borderRadius: '8px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => { setApproveModalOpen(false); setSelectedReg(null); }} 
+                  className="btn-secondary" 
+                  style={{ padding: '8px 20px', borderRadius: '8px' }}
+                  disabled={isApproving}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" style={{ padding: '8px 20px', borderRadius: '8px', background: 'linear-gradient(90deg, #059669 0%, #047857 100%)' }}>
-                  Approve & Email details
+                <button 
+                  type="submit" 
+                  className="btn-primary" 
+                  style={{ padding: '8px 20px', borderRadius: '8px', background: 'linear-gradient(90deg, #059669 0%, #047857 100%)' }}
+                  disabled={isApproving}
+                >
+                  {isApproving ? <span className="spinner-small"></span> : 'Approve and Email'}
                 </button>
               </div>
             </form>
@@ -2719,11 +2743,7 @@ const AdminRegistrations = ({ showSuccess, showError }) => {
                   <td style={tableCellStyle}>{reg.clubId?.name || reg.eventId?.title} ({reg.clubId ? 'Club' : 'Event'})</td>
                   <td style={tableCellStyle}>
                     <span style={getStatusBadgeStyle(reg.status)}>{reg.status}</span>
-                    {reg.status === 'Registered' && (
-                      <div style={{ fontSize: '0.7rem', color: '#2ecc71', marginTop: '2px', fontWeight: 'bold' }}>
-                        🎟️ Ticket Confirmed
-                      </div>
-                    )}
+                    
                   </td>
                   <td style={tableCellStyle}>
                     <div style={{ display: 'flex', gap: '6px' }}>
@@ -2870,15 +2890,12 @@ const getStatusBadgeStyle = (status) => {
   let bg = 'rgba(15, 48, 87, 0.08)';
   let color = 'var(--text-secondary)';
 
-  if (status === 'Approved' || status === 'Selected' || status === 'Registered') {
+  if (status === 'Approved') {
     bg = 'rgba(46, 204, 113, 0.15)';
     color = '#2ecc71';
   } else if (status === 'Rejected') {
     bg = 'rgba(231, 76, 60, 0.15)';
     color = '#e74c3c';
-  } else if (status === 'Shortlisted') {
-    bg = 'rgba(52, 152, 219, 0.15)';
-    color = '#3498db';
   } else if (status === 'Pending') {
     bg = 'rgba(241, 196, 15, 0.15)';
     color = '#f1c40f';
