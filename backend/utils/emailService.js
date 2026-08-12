@@ -1,5 +1,17 @@
 const nodemailer = require('nodemailer');
 const https = require('https'); // Built-in Node.js module for HTTP requests
+const fs = require('fs');
+const path = require('path');
+
+const logEmailStatus = (to, subject, transport, status, details) => {
+  try {
+    const logFilePath = path.join(__dirname, '..', 'email_logs.txt');
+    const logEntry = `[${new Date().toLocaleString()}] TO: ${to} | SUBJECT: "${subject}" | METHOD: ${transport} | STATUS: ${status} | DETAILS: ${typeof details === 'object' ? JSON.stringify(details) : details}\n`;
+    fs.appendFileSync(logFilePath, logEntry);
+  } catch (err) {
+    console.error('Failed to write to email_logs.txt:', err);
+  }
+};
 
 // Initialize Nodemailer transporter
 let transporter;
@@ -96,7 +108,7 @@ const sendEmail = async ({ to, subject, text, html }) => {
   const fromStr = process.env.EMAIL_FROM || '"EduEvent Manager" <noreply@eduevent.com>';
 
   // 1. Try Brevo HTTP API first if BREVO_API_KEY is configured (works on Render Free tier)
-  if (process.env.BREVO_API_KEY) {
+  if (process.env.BREVO_API_KEY && process.env.BREVO_API_KEY !== 'your-brevo-api-key-here' && process.env.BREVO_API_KEY.trim() !== '') {
     try {
       const sender = parseSender(fromStr);
       const result = await sendViaBrevoAPI(process.env.BREVO_API_KEY, {
@@ -107,12 +119,14 @@ const sendEmail = async ({ to, subject, text, html }) => {
         textContent: text || html
       });
       console.log(`Email sent successfully via Brevo HTTP API: ${result.messageId}`);
+      logEmailStatus(to, subject, 'Brevo API', 'SUCCESS', result);
       return result;
     } catch (error) {
       console.error("========== BREVO API EMAIL ERROR ==========");
       console.error(error.message);
       console.error("==========================================");
-      return null;
+      console.log("Brevo API failed. Falling back to SMTP...");
+      logEmailStatus(to, subject, 'Brevo API', 'FAILED', error.message);
     }
   }
 
@@ -129,12 +143,14 @@ const sendEmail = async ({ to, subject, text, html }) => {
     try {
       const info = await transporter.sendMail(mailOptions);
       console.log(`Email sent successfully via SMTP: ${info.messageId}`);
+      logEmailStatus(to, subject, 'SMTP', 'SUCCESS', info);
       return info;
     } catch (error) {
       console.error("========== SMTP EMAIL ERROR ==========");
       console.error(error);
       console.error("======================================");
-      return null;
+      console.log("SMTP failed. Falling back to simulation...");
+      logEmailStatus(to, subject, 'SMTP', 'FAILED', error.message || error);
     }
   }
 
@@ -144,6 +160,7 @@ const sendEmail = async ({ to, subject, text, html }) => {
   console.log(`SUBJECT: ${subject}`);
   console.log(`BODY:    ${text || 'HTML Content (see logs)'}`);
   console.log('-------------------------------------\n');
+  logEmailStatus(to, subject, 'Simulation', 'SUCCESS', 'Simulated due to no active/working email services');
   return { simulated: true };
 };
 
@@ -214,7 +231,7 @@ const sendApprovalEmail = async (student, itemName, isClub = true) => {
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-      <h2 style="color: #28a745; text-align: center;">Congratulations! 🎉</h2>
+      <h2 style="color: #28a745; text-align: center;">Congratulations!</h2>
       <p>Hello <strong>${student.name}</strong>,</p>
       ${isClub ? `
         <p>We are excited to inform you that your application request to join the <strong>"${itemName}" club</strong> has been <span style="background-color: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-weight: bold;">Approved</span>.</p>
@@ -261,7 +278,7 @@ const sendShortlistEmail = async (student, itemName, isClub = true, remarks = ''
   const text = `Hello ${student.name},\n\nWe are pleased to inform you that you have been shortlisted for the ${type} "${itemName}" recruitment/participation round.\n\nNext steps/Remarks: ${remarks || 'Please wait for further communication'}\n\nBest regards,\nEduEvent Manager Team`;
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-      <h2 style="color: #17a2b8; text-align: center;">You're Shortlisted! 🌟</h2>
+      <h2 style="color: #17a2b8; text-align: center;">You're Shortlisted!</h2>
       <p>Hello <strong>${student.name}</strong>,</p>
       <p>We are pleased to inform you that you have been <span style="background-color: #d1ecf1; color: #0c5460; padding: 4px 8px; border-radius: 4px; font-weight: bold;">Shortlisted</span> for the <strong>${type} "${itemName}"</strong>.</p>
       ${remarks ? `<p><strong>Coordinator Instructions:</strong> ${remarks}</p>` : '<p>Please check your email and student dashboard for details regarding the next rounds/steps.</p>'}
@@ -295,7 +312,7 @@ const sendEventRegistrationSuccessEmail = async ({ student, event, club, registr
       <p style="font-size: 1.05rem;">You have successfully registered for the event <strong>"${event.title}"</strong>!</p>
       
       <div style="background-color: #ffffff; border: 1px dashed #667eea; border-radius: 8px; padding: 15px; margin: 20px 0;">
-        <h3 style="margin-top: 0; color: #2ecc71; display: flex; align-items: center; gap: 8px;">🎟️ Your Entry Ticket</h3>
+        <h3 style="margin-top: 0; color: #2ecc71; display: flex; align-items: center; gap: 8px;">Your Entry Ticket</h3>
         <table style="width: 100%; border-collapse: collapse;">
           <tr style="height: 32px; border-bottom: 1px solid #f0f0f0;">
             <td style="width: 40%;"><strong>Registration ID:</strong></td>
@@ -336,19 +353,16 @@ const sendEventRegistrationSuccessEmail = async ({ student, event, club, registr
         </table>
       </div>
 
-      <div style="margin: 20px 0;">
-        <strong>Description:</strong>
-        <p style="color: #555; line-height: 1.5; font-size: 0.92rem; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee;">${event.description || 'No description available.'}</p>
-      </div>
+
 
       <div style="background-color: #f1f3f5; border-radius: 8px; padding: 15px; margin: 20px 0; font-size: 0.9rem;">
-        <h4 style="margin-top: 0; color: #495057; border-bottom: 1px solid #ddd; padding-bottom: 4px;">📞 Club Contact Information</h4>
+        <h4 style="margin-top: 0; color: #495057; border-bottom: 1px solid #ddd; padding-bottom: 4px;">Club Contact Information</h4>
         <p style="margin: 6px 0;"><strong>President:</strong> ${club.president?.name || 'N/A'} (Phone: ${club.president?.contact || 'N/A'})</p>
         <p style="margin: 6px 0;"><strong>Vice President:</strong> ${club.vicePresident?.name || 'N/A'} (Phone: ${club.vicePresident?.contact || 'N/A'})</p>
       </div>
 
       <div style="background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; padding: 12px; font-size: 0.88rem; margin: 20px 0; line-height: 1.4;">
-        <strong>⚠️ Instructions:</strong> Please arrive 15 minutes before the start time. Carry a printed copy or screenshot of this email ticket along with your college ID card for check-in at the venue.
+        <strong>Instructions:</strong> Please arrive 15 minutes before the start time. Carry a printed copy or screenshot of this email ticket along with your college ID card for check-in at the venue.
       </div>
 
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
@@ -370,44 +384,50 @@ const sendInterviewDetailsEmail = async (student, clubName, interviewDetails) =>
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-      <h2 style="color: #28a745; text-align: center;">🎉 Shortlisted for Next Round!</h2>
+      <h2 style="color: #28a745; text-align: center;">Shortlisted for Next Round!</h2>
       <p>Hello <strong>${student.name}</strong>,</p>
       <p>We are excited to inform you that your application to join <strong>"${clubName}"</strong> has been approved, and you have been shortlisted for the next round of selection.</p>
       
       <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 20px 0;">
-        <h3 style="margin-top: 0; color: #495057; border-bottom: 1px solid #ddd; padding-bottom: 8px;">📋 Interview / Selection Details</h3>
+        <h3 style="margin-top: 0; color: #495057; border-bottom: 1px solid #ddd; padding-bottom: 8px;">Interview / Selection Details</h3>
         <table style="width: 100%; border-collapse: collapse;">
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
-            <td style="width: 35%;"><strong>📍 Venue:</strong></td>
+            <td style="width: 25%;"><strong>Venue:</strong></td>
             <td>${venue}</td>
           </tr>
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
-            <td><strong>📅 Date:</strong></td>
+            <td><strong>Date:</strong></td>
             <td>${date}</td>
-          </tr>
-          <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
-            <td><strong>🕐 Time:</strong></td>
-            <td>${time}</td>
           </tr>
           ${location ? `
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
-            <td><strong>📌 Location:</strong></td>
-            <td>${location}</td>
-          </tr>` : ''}
-          <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
-            <td><strong>📝 Description/Instructions:</strong></td>
-            <td>${description || 'None provided'}</td>
+            <td><strong>Time:</strong></td>
+            <td>${time}</td>
           </tr>
-          ${notes ? `
           <tr style="height: 36px;">
-            <td><strong>📝 Additional Notes:</strong></td>
-            <td>${notes}</td>
-          </tr>` : ''}
+            <td><strong>Location:</strong></td>
+            <td>${location}</td>
+          </tr>` : `
+          <tr style="height: 36px;">
+            <td><strong>Time:</strong></td>
+            <td>${time}</td>
+          </tr>`}
         </table>
+
+        <div style="margin-top: 15px; border-top: 1px solid #e9ecef; padding-top: 12px;">
+          <strong style="color: #495057; font-size: 0.9rem;">Description/Instructions:</strong>
+          <p style="margin: 6px 0 0 0; color: #555; font-size: 0.88rem; line-height: 1.5; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #dee2e6;">${description || 'None provided'}</p>
+        </div>
+
+        ${notes ? `
+        <div style="margin-top: 12px;">
+          <strong style="color: #495057; font-size: 0.9rem;">Additional Notes:</strong>
+          <p style="margin: 6px 0 0 0; color: #555; font-size: 0.88rem; line-height: 1.5; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #dee2e6;">${notes}</p>
+        </div>` : ''}
       </div>
 
       <div style="background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; padding: 12px; font-size: 0.88rem; margin: 20px 0; line-height: 1.4;">
-        <strong>⚠️ Important:</strong> Please arrive 15 minutes before the scheduled time. Carry your college ID card for verification.
+        <strong>Important:</strong> Please arrive 15 minutes before the scheduled time. Carry your college ID card for verification.
       </div>
 
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
@@ -428,42 +448,35 @@ const sendEventApprovalEmail = async (student, event) => {
   const dateStr = new Date(event.date).toLocaleDateString('en-US', dateOptions);
   const timeStr = new Date(event.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  const text = `Hello ${student.name},\n\nCongratulations! Your registration has been successfully confirmed. We look forward to seeing you at the event.\n\nEvent Details:\n- Event Name: ${event.title}\n- Venue: ${event.venue}\n- Date: ${dateStr}\n- Time: ${timeStr}\n${event.description ? `\nDescription:\n${event.description}\n` : ''}\nBest regards,\nEduEvent Manager Team`;
+  const text = `Hello ${student.name},\n\nCongratulations! Your registration has been successfully confirmed. We look forward to seeing you at the event.\n\nEvent Details:\n- Event Name: ${event.title}\n- Venue: ${event.venue}\n- Date: ${dateStr}\n- Time: ${timeStr}\n\nBest regards,\nEduEvent Manager Team`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-      <h2 style="color: #28a745; text-align: center;">🎉 Registration Confirmed!</h2>
+      <h2 style="color: #28a745; text-align: center;">Registration Confirmed!</h2>
       <p>Hello <strong>${student.name}</strong>,</p>
       <p>Congratulations! Your registration has been successfully confirmed. We look forward to seeing you at the event.</p>
       
       <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 20px 0;">
-        <h3 style="margin-top: 0; color: #495057; border-bottom: 1px solid #ddd; padding-bottom: 8px;">📅 Event Details</h3>
+        <h3 style="margin-top: 0; color: #495057; border-bottom: 1px solid #ddd; padding-bottom: 8px;">Event Details</h3>
         <table style="width: 100%; border-collapse: collapse;">
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
-            <td style="width: 35%;"><strong>🎟️ Event Name:</strong></td>
+            <td style="width: 35%;"><strong>Event Name:</strong></td>
             <td><strong>${event.title}</strong></td>
           </tr>
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
-            <td><strong>📍 Venue:</strong></td>
+            <td><strong>Venue:</strong></td>
             <td>${event.venue}</td>
           </tr>
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
-            <td><strong>📅 Date:</strong></td>
+            <td><strong>Date:</strong></td>
             <td>${dateStr}</td>
           </tr>
           <tr style="height: 36px; border-bottom: 1px solid #f0f0f0;">
-            <td><strong>🕐 Time:</strong></td>
+            <td><strong>Time:</strong></td>
             <td>${timeStr}</td>
           </tr>
         </table>
       </div>
-
-      ${event.description ? `
-      <div style="margin: 20px 0;">
-        <strong>Description:</strong>
-        <p style="color: #555; line-height: 1.5; font-size: 0.92rem; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #eee;">${event.description}</p>
-      </div>
-      ` : ''}
 
       <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
       <p style="font-size: 12px; color: #777; text-align: center;">This is an automated message from EduEvent Manager.</p>
