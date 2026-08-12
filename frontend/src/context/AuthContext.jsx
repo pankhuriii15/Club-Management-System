@@ -35,15 +35,43 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Sync profile on mount or token changes
+  // Sync profile on mount or token changes, with JWT expiration checks
   useEffect(() => {
     if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload && payload.exp * 1000 < Date.now()) {
+          logout();
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to parse token on mount:', e);
+      }
       fetchProfile();
     } else {
       setUser(null);
       setLoading(false);
     }
   }, [token, fetchProfile]);
+
+  // Periodic token expiration check (every 30 seconds)
+  useEffect(() => {
+    if (!token) return;
+
+    const interval = setInterval(() => {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload && payload.exp * 1000 < Date.now()) {
+          logout();
+        }
+      } catch (e) {
+        console.error('Failed to parse token in background check:', e);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [token]);
 
   const login = async (email, password) => {
     try {

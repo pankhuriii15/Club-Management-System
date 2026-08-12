@@ -36,10 +36,7 @@ const Landing = () => {
       <div className="glow-bubble glow-bubble-1"></div>
       <div className="glow-bubble glow-bubble-2"></div>
 
-      {/* Decorative Circles matching College Website screenshots */}
-      <div className="deco-circle deco-circle-yellow" style={{ top: '8%', right: '15%', width: '40px', height: '40px' }}></div>
-      <div className="deco-circle deco-circle-blue" style={{ top: '35%', left: '8%', width: '32px', height: '32px' }}></div>
-      <div className="deco-circle deco-circle-yellow" style={{ bottom: '15%', left: '20%', width: '45px', height: '45px' }}></div>
+
 
       {/* TWO COLUMN HERO SECTION TO MATCH REFERENCE SITE */}
       <section 

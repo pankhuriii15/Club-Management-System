@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 // Generate JWT token helper
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'eduevent_super_secret_jwt_key_123!', {
-    expiresIn: '30d'
+    expiresIn: '12h'
   });
 };
 
