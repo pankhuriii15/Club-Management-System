@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { formatImageUrl } from '../utils/imageUrl';
 import { Search, Filter, Compass } from 'lucide-react';
 
 const Clubs = () => {
@@ -115,7 +116,7 @@ const Clubs = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
                     {club.logo ? (
                       <img
-                        src={club.logo}
+                        src={formatImageUrl(club.logo)}
                         alt={club.name}
                         style={{ width: '50px', height: '50px', borderRadius: '12px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
                       />

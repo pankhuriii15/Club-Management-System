@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { formatImageUrl } from '../utils/imageUrl';
 import { Search, MapPin, Calendar, Clock, Compass } from 'lucide-react';
 
 const Events = () => {
@@ -95,7 +96,7 @@ const Events = () => {
                 <div style={{ height: '160px', overflow: 'hidden', position: 'relative' }}>
                   {evt.bannerImage ? (
                     <img 
-                      src={evt.bannerImage} 
+                      src={formatImageUrl(evt.bannerImage)} 
                       alt={evt.title} 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                     />

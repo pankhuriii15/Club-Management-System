@@ -22,6 +22,25 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Students must register with a @medicaps.ac.in email address' });
     }
 
+    // Validate password constraints
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
+    }
+    const hasDigit = /\d/.test(password);
+    const hasSpecialChar = /[^a-zA-Z0-9]/.test(password);
+    if (!hasDigit || !hasSpecialChar) {
+      return res.status(400).json({ success: false, message: 'Password must contain at least one digit and one special character' });
+    }
+
+    // Validate phone number constraints
+    if (!phone) {
+      return res.status(400).json({ success: false, message: 'Phone number is required' });
+    }
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length < 10) {
+      return res.status(400).json({ success: false, message: 'Phone number must contain at least 10 digits' });
+    }
+
     // Block registration with super admin email
     const superAdminEmail = (process.env.SUPER_ADMIN_EMAIL || '').toLowerCase();
     if (email.toLowerCase() === superAdminEmail) {
@@ -83,7 +102,7 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       console.log(`[DEBUG LOGIN] user not found in DB for email="${email}"`);
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+      return res.status(404).json({ success: false, message: 'Email is not registered' });
     }
 
     const matches = await user.comparePassword(password);
@@ -104,7 +123,7 @@ const loginUser = async (req, res) => {
         }
       });
     } else {
-      res.status(401).json({ success: false, message: 'Invalid email or password' });
+      res.status(401).json({ success: false, message: 'Incorrect password' });
     }
   } catch (error) {
     console.error('[DEBUG LOGIN] error:', error);
@@ -129,8 +148,78 @@ const getUserProfile = async (req, res) => {
   }
 };
 
+// @desc Forgot Password - Direct password reset (bypass email link)
+// @route POST /api/auth/forgot-password
+// @access Public
+const forgotPassword = async (req, res) => {
+  const { email, password } = req.body;
+  
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: 'Please provide email and new password' });
+  }
+
+  // Validate password strength
+  if (password.length < 6) {
+    return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
+  }
+  const hasDigit = /\d/.test(password);
+  const hasSpecialChar = /[^a-zA-Z0-9]/.test(password);
+  if (!hasDigit || !hasSpecialChar) {
+    return res.status(400).json({ success: false, message: 'Password must contain at least one digit and one special character' });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'No user registered with this email address' });
+    }
+
+    // Direct password update
+    user.password = password;
+    await user.save();
+
+    res.json({ success: true, message: 'Password updated successfully! You can now log in.' });
+  } catch (error) {
+    console.error('Direct reset password error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc Reset Password
+// @route POST /api/auth/reset-password
+// @access Public
+const resetPassword = async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    return res.status(400).json({ success: false, message: 'Token and new password are required' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'eduevent_super_secret_jwt_key_123!');
+    
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.password = password;
+    await user.save();
+
+    res.json({ success: true, message: 'Password reset successful! You can now log in with your new password.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    if (error.name === 'TokenExpiredError') {
+      return res.status(400).json({ success: false, message: 'Reset token has expired. Please request a new link.' });
+    }
+    res.status(400).json({ success: false, message: 'Invalid or malformed reset token' });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
-  getUserProfile
+  getUserProfile,
+  forgotPassword,
+  resetPassword
 };

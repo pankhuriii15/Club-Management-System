@@ -10,6 +10,7 @@ import Clubs from './pages/Clubs';
 import ClubDetails from './pages/ClubDetails';
 import Events from './pages/Events';
 import EventDetails from './pages/EventDetails';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
                 <Route path="/clubs/:id" element={<ClubDetails />} />
                 <Route path="/events" element={<Events />} />
                 <Route path="/events/:id" element={<EventDetails />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
               </Routes>
             </main>
           </div>

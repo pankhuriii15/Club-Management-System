@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
+import { formatImageUrl } from '../utils/imageUrl';
 import { Calendar, Users, Award, Shield, User, Mail, Phone, ChevronLeft, Clock, MapPin } from 'lucide-react';
 
 const ClubDetails = () => {
@@ -158,7 +159,7 @@ const ClubDetails = () => {
           <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
               {club.logo ? (
-                <img src={club.logo} alt={club.name} style={{ width: '80px', height: '80px', borderRadius: '16px', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.2)' }} />
+                <img src={formatImageUrl(club.logo)} alt={club.name} style={{ width: '80px', height: '80px', borderRadius: '16px', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.2)' }} />
               ) : (
                 <div style={{ width: '80px', height: '80px', borderRadius: '16px', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '2rem' }}>
                   {club.name[0]}
@@ -239,7 +240,7 @@ const ClubDetails = () => {
             {club.president?.name ? (
               <div className="glass-card" style={{ padding: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
                 {club.president.photo ? (
-                  <img src={club.president.photo} alt={club.president.name} style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }} />
+                  <img src={formatImageUrl(club.president.photo)} alt={club.president.name} style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(15, 48, 87, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#0f3057' }}>P</div>
                 )}
@@ -258,7 +259,7 @@ const ClubDetails = () => {
             {club.vicePresident?.name ? (
               <div className="glass-card" style={{ padding: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
                 {club.vicePresident.photo ? (
-                  <img src={club.vicePresident.photo} alt={club.vicePresident.name} style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }} />
+                  <img src={formatImageUrl(club.vicePresident.photo)} alt={club.vicePresident.name} style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(15, 48, 87, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#0f3057' }}>VP</div>
                 )}
@@ -306,7 +307,7 @@ const ClubDetails = () => {
                   >
                     <div style={{ height: '160px', overflow: 'hidden', position: 'relative' }}>
                       {evt.bannerImage ? (
-                        <img src={evt.bannerImage} alt={evt.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={formatImageUrl(evt.bannerImage)} alt={evt.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         <div style={{ width: '100%', height: '100%', background: 'var(--primary-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
                           EduEvent Event
@@ -425,7 +426,7 @@ const ClubDetails = () => {
                     >
                       <div style={{ height: '160px', overflow: 'hidden', position: 'relative' }}>
                         {evt.bannerImage ? (
-                          <img src={evt.bannerImage} alt={evt.title} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(30%)' }} />
+                          <img src={formatImageUrl(evt.bannerImage)} alt={evt.title} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(30%)' }} />
                         ) : (
                           <div style={{ width: '100%', height: '100%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
                             EduEvent Event

@@ -303,7 +303,7 @@ const sendEventRegistrationSuccessEmail = async ({ student, event, club, registr
   const endTime = new Date(new Date(event.date).getTime() + 3 * 60 * 60 * 1000);
   const endTimeStr = endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  const text = `Hello ${student.name},\n\nYou have successfully registered for the event "${event.title}" organized by ${club.name}.\n\nTicket Details:\n- Registration ID: ${registration._id}\n- Venue: ${event.venue}\n- Date: ${dateStr}\n- Time: ${startTimeStr} - ${endTimeStr}\n- Payment Status: Paid (INR ${payment.amount})\n- Transaction ID: ${payment.razorpayPaymentId || 'N/A'}\n- Order ID: ${payment.razorpayOrderId || 'N/A'}\n\nClub Contacts:\n- President: ${club.president?.name || 'N/A'} (Contact: ${club.president?.contact || 'N/A'})\n- Vice President: ${club.vicePresident?.name || 'N/A'} (Contact: ${club.vicePresident?.contact || 'N/A'})\n\nInstructions:\nPlease carry a copy of this email ticket and your college ID card for check-in at the venue.\n\nBest regards,\nEduEvent Manager Team`;
+  const text = `Hello ${student.name},\n\nYou have successfully registered for the event "${event.title}" organized by ${club.name}.\n\nTicket Details:\n- Registration ID: ${registration._id}\n- Venue: ${event.venue}\n- Date: ${dateStr}\n- Time: ${startTimeStr} - ${endTimeStr}\n- Payment Status: Paid (INR ${payment.amount})\n- Transaction ID: ${payment.transactionId || payment.paymentId || 'N/A'}\n- Order ID: ${payment.orderId || 'N/A'}\n\nClub Contacts:\n- President: ${club.president?.name || 'N/A'} (Contact: ${club.president?.contact || 'N/A'})\n- Vice President: ${club.vicePresident?.name || 'N/A'} (Contact: ${club.vicePresident?.contact || 'N/A'})\n\nInstructions:\nPlease carry a copy of this email ticket and your college ID card for check-in at the venue.\n\nBest regards,\nEduEvent Manager Team`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 12px; background-color: #fafafa;">
@@ -344,11 +344,11 @@ const sendEventRegistrationSuccessEmail = async ({ student, event, club, registr
           </tr>
           <tr style="height: 32px; border-bottom: 1px solid #f0f0f0;">
             <td><strong>Transaction ID:</strong></td>
-            <td style="font-family: monospace; font-size: 0.88rem;">${payment.razorpayPaymentId || 'N/A'}</td>
+            <td style="font-family: monospace; font-size: 0.88rem;">${payment.transactionId || payment.paymentId || 'N/A'}</td>
           </tr>
           <tr style="height: 32px;">
             <td><strong>Order ID:</strong></td>
-            <td style="font-family: monospace; font-size: 0.88rem;">${payment.razorpayOrderId || 'N/A'}</td>
+            <td style="font-family: monospace; font-size: 0.88rem;">${payment.orderId || 'N/A'}</td>
           </tr>
         </table>
       </div>

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
+import { formatImageUrl } from '../utils/imageUrl';
 import Sidebar from '../components/Sidebar';
 import { 
   Users, Calendar, Heart, FileText, CreditCard, User, 
-  Plus, Edit, Trash2, Check, X, Mail, Send, Award, DollarSign, BarChart2, Settings
+  Plus, Edit, Trash2, Check, X, Mail, Send, Award, DollarSign, BarChart2, Settings, Upload
 } from 'lucide-react';
 import './Dashboard.css';
 
@@ -122,7 +124,7 @@ const UserProfile = ({ user }) => {
         <div style={{ position: 'relative' }}>
           {user.profilePhoto ? (
             <img 
-              src={user.profilePhoto} 
+              src={formatImageUrl(user.profilePhoto)} 
               alt={user.name} 
               style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(15, 48, 87, 0.15)' }} 
             />
@@ -332,7 +334,7 @@ const StudentOverview = ({ showSuccess, showError }) => {
               >
                 <div style={{ height: '140px', background: 'rgba(15,48,87,0.05)', position: 'relative' }}>
                   {evt.bannerImage ? (
-                    <img src={evt.bannerImage} alt={evt.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={formatImageUrl(evt.bannerImage)} alt={evt.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', background: 'linear-gradient(135deg, #1e1b4b 0%, #311042 100%)', color: 'rgba(255,255,255,0.5)' }}>
                       EduEvent
@@ -381,7 +383,7 @@ const StudentOverview = ({ showSuccess, showError }) => {
       )}
 
       {/* EVENT DETAIL OVERLAY MODAL */}
-      {selectedEvent && (
+      {selectedEvent && createPortal(
         <div style={modalOverlayStyle}>
           <div className="glass-panel" style={{ width: '90%', maxWidth: '550px', padding: '30px' }}>
             <h3 style={{ fontFamily: 'Outfit', fontSize: '1.5rem', marginBottom: '12px', color: 'var(--text-primary)' }}>{selectedEvent.title}</h3>
@@ -431,7 +433,8 @@ const StudentOverview = ({ showSuccess, showError }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
 
@@ -548,7 +551,7 @@ const StudentRecommendations = ({ showSuccess }) => {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                       {club.logo ? (
-                        <img src={club.logo} alt={club.name} style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} />
+                        <img src={formatImageUrl(club.logo)} alt={club.name} style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} />
                       ) : (
                         <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'rgba(15, 48, 87, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#0f3057' }}>{club.name[0]}</div>
                       )}
@@ -726,8 +729,8 @@ const StudentPayments = () => {
                 <tr key={p._id} style={tableRowStyle}>
                   <td style={tableCellStyle}>{p.clubId?.name || p.eventId?.title}</td>
                   <td style={tableCellStyle}>₹{p.amount}</td>
-                  <td style={tableCellStyle} style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{p.razorpayOrderId}</td>
-                  <td style={tableCellStyle} style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{p.razorpayPaymentId}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{p.orderId || 'N/A'}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{p.paymentId || 'N/A'}</td>
                   <td style={tableCellStyle}>{new Date(p.paymentDate).toLocaleDateString()}</td>
                   <td style={tableCellStyle}>
                     <span style={{
@@ -921,6 +924,104 @@ const StudentRegisteredEvents = ({ showError }) => {
 };
 
 /* ==========================================================================
+   REUSABLE FILE UPLOAD COMPONENT (Uploads directly to Cloudinary)
+   ========================================================================== */
+const FileUploadField = ({ label, currentUrl, onUploadSuccess, showError }) => {
+  const [uploading, setUploading] = useState(false);
+
+  // Helper to construct full image URL if path is relative (/uploads/...)
+  const getFullImageUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const backendBase = 'http://localhost:5000';
+    return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      if (showError) showError('Please select a valid image file (PNG, JPG, WEBP, etc.)');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.data.success && res.data.url) {
+        onUploadSuccess(res.data.url);
+      } else {
+        if (showError) showError('Upload failed. Please try again.');
+      }
+    } catch (err) {
+      if (showError) showError(err.response?.data?.message || 'Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      {label && <label style={labelStyle}>{label}</label>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {currentUrl ? (
+          <img 
+            src={getFullImageUrl(currentUrl)} 
+            alt="Preview" 
+            style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.2)', flexShrink: 0 }} 
+          />
+        ) : null}
+        
+        <label 
+          className="glass-input" 
+          style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            cursor: uploading ? 'wait' : 'pointer',
+            padding: '10px 16px',
+            fontSize: '0.85rem',
+            fontWeight: 500,
+            color: 'var(--text-primary)',
+            width: '100%',
+            justifyContent: 'center',
+            background: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '10px',
+            border: '1px dashed var(--panel-border)',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          {uploading ? (
+            <>
+              <span className="spinner-small" style={{ width: '14px', height: '14px' }}></span>
+              Uploading Image...
+            </>
+          ) : (
+            <>
+              <Upload size={16} />
+              Upload Image
+            </>
+          )}
+          <input 
+            type="file" 
+            accept="image/*" 
+            onChange={handleFileChange} 
+            disabled={uploading} 
+            style={{ display: 'none' }} 
+          />
+        </label>
+      </div>
+    </div>
+  );
+};
+
+/* ==========================================================================
    COORDINATOR: Manage Club Details (Update Form)
    ========================================================================== */
 const CoordinatorClubDetails = ({ showSuccess, showError }) => {
@@ -949,11 +1050,6 @@ const CoordinatorClubDetails = ({ showSuccess, showError }) => {
     try {
       const res = await api.get('/clubs');
       if (res.data.success) {
-        // Find club where coordinator matches current coordinator (done inside backend or match here)
-        // Wait, the backend has /api/clubs but let's filter for coordinator.
-        // Or we could have an endpoint, but since we are coordinating, let's fetch and match.
-        const currentCoordId = res.data.data[0]?.coordinatorId?._id; // Quick check
-        // Let's filter clubs by coordinatorId
         const usersRes = await api.get('/auth/profile');
         const loggedInUserId = usersRes.data.data._id;
         const myClub = res.data.data.find(c => 
@@ -1056,8 +1152,12 @@ const CoordinatorClubDetails = ({ showSuccess, showError }) => {
             <input type="text" className="glass-input" value={club.category} disabled />
           </div>
           <div>
-            <label style={labelStyle}>Logo Image URL</label>
-            <input type="text" name="logo" className="glass-input" value={formData.logo} onChange={handleChange} placeholder="https://..." />
+            <FileUploadField 
+              label="Club Logo Image" 
+              currentUrl={formData.logo} 
+              onUploadSuccess={(url) => setFormData(prev => ({ ...prev, logo: url }))} 
+              showError={showError} 
+            />
           </div>
         </div>
 
@@ -1076,8 +1176,6 @@ const CoordinatorClubDetails = ({ showSuccess, showError }) => {
           <textarea name="qualificationCriteria" className="glass-input" rows="3" value={formData.qualificationCriteria} onChange={handleChange} placeholder="Describe entry requirements for students wanting to join..."></textarea>
         </div>
 
-
-
         {/* President Profile */}
         <div style={{ borderTop: '1px solid var(--panel-border)', paddingTop: '20px' }}>
           <h4 style={{ fontFamily: 'Outfit', color: 'var(--text-primary)', marginBottom: '14px' }}>President Information (Single slot)</h4>
@@ -1085,7 +1183,12 @@ const CoordinatorClubDetails = ({ showSuccess, showError }) => {
             <input type="text" name="presidentName" className="glass-input" placeholder="Name" value={formData.presidentName} onChange={handleChange} required />
             <input type="email" name="presidentEmail" className="glass-input" placeholder="Email" value={formData.presidentEmail} onChange={handleChange} required />
             <input type="text" name="presidentContact" className="glass-input" placeholder="Contact number" value={formData.presidentContact} onChange={handleChange} required />
-            <input type="text" name="presidentPhoto" className="glass-input" placeholder="Photo URL" value={formData.presidentPhoto} onChange={handleChange} />
+            <FileUploadField 
+              label="President Photo" 
+              currentUrl={formData.presidentPhoto} 
+              onUploadSuccess={(url) => setFormData(prev => ({ ...prev, presidentPhoto: url }))} 
+              showError={showError} 
+            />
           </div>
         </div>
 
@@ -1096,7 +1199,12 @@ const CoordinatorClubDetails = ({ showSuccess, showError }) => {
             <input type="text" name="vpName" className="glass-input" placeholder="Name" value={formData.vpName} onChange={handleChange} required />
             <input type="email" name="vpEmail" className="glass-input" placeholder="Email" value={formData.vpEmail} onChange={handleChange} required />
             <input type="text" name="vpContact" className="glass-input" placeholder="Contact number" value={formData.vpContact} onChange={handleChange} required />
-            <input type="text" name="vpPhoto" className="glass-input" placeholder="Photo URL" value={formData.vpPhoto} onChange={handleChange} />
+            <FileUploadField 
+              label="VP Photo" 
+              currentUrl={formData.vpPhoto} 
+              onUploadSuccess={(url) => setFormData(prev => ({ ...prev, vpPhoto: url }))} 
+              showError={showError} 
+            />
           </div>
         </div>
 
@@ -1339,8 +1447,12 @@ const CoordinatorEvents = ({ showSuccess, showError }) => {
               </div>
 
               <div>
-                <label style={labelStyle}>Banner URL</label>
-                <input type="text" className="glass-input" placeholder="https://..." value={eventData.bannerImage} onChange={(e) => setEventData({ ...eventData, bannerImage: e.target.value })} />
+                <FileUploadField 
+                  label="Event Banner Image" 
+                  currentUrl={eventData.bannerImage} 
+                  onUploadSuccess={(url) => setEventData(prev => ({ ...prev, bannerImage: url }))} 
+                  showError={showError} 
+                />
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
@@ -1884,7 +1996,7 @@ const CoordinatorPayments = () => {
                   <td style={tableCellStyle}>{p.userId?.department} ({p.userId?.semester})</td>
                   <td style={tableCellStyle}>{p.clubId?.name || p.eventId?.title}</td>
                   <td style={{ ...tableCellStyle, color: '#2ecc71', fontWeight: 'bold' }}>₹{p.amount}</td>
-                  <td style={{ ...tableCellStyle, fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}>{p.razorpayOrderId}</td>
+                  <td style={{ ...tableCellStyle, fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}>{p.orderId || 'N/A'}</td>
                   <td style={tableCellStyle}>{new Date(p.paymentDate).toLocaleDateString()}</td>
                 </tr>
               ))}
@@ -2816,8 +2928,8 @@ const AdminPayments = () => {
                   </td>
                   <td style={tableCellStyle}>{p.clubId?.name || p.eventId?.title}</td>
                   <td style={{ ...tableCellStyle, color: '#2ecc71', fontWeight: 600 }}>₹{p.amount}</td>
-                  <td style={{ ...tableCellStyle, fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}>{p.razorpayOrderId}</td>
-                  <td style={{ ...tableCellStyle, fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}>{p.razorpayPaymentId}</td>
+                  <td style={{ ...tableCellStyle, fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}>{p.orderId || 'N/A'}</td>
+                  <td style={{ ...tableCellStyle, fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}>{p.paymentId || 'N/A'}</td>
                   <td style={tableCellStyle}>{new Date(p.paymentDate).toLocaleDateString()}</td>
                   <td style={tableCellStyle}>
                     <span style={{ color: p.status === 'Successful' ? '#2ecc71' : '#ff7675', fontWeight: 700, fontSize: '0.85rem' }}>{p.status}</span>

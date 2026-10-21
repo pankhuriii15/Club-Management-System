@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Lock, Mail, User, Phone, GraduationCap, ArrowRight, Layers, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, User, Phone, GraduationCap, ArrowRight, Layers, Eye, EyeOff, X } from 'lucide-react';
 import api from '../services/api';
 import loginIllustration from '../assets/login_illustration.png';
 import './Login.css';
 
 const Login = () => {
   const { login, register } = useAuth();
-  const { showWarning, showError } = useToast();
+  const { showSuccess, showWarning, showError } = useToast();
   const navigate = useNavigate();
 
   const [isLoginTab, setIsLoginTab] = useState(true);
@@ -27,6 +27,53 @@ const Login = () => {
   });
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotModalOpen, setForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotPassword, setForgotPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail || !forgotPassword || !forgotConfirmPassword) {
+      showWarning('Please fill in all fields.');
+      return;
+    }
+    if (forgotPassword.length < 6) {
+      showWarning('Password must be at least 6 characters long.');
+      return;
+    }
+    const hasDigit = /\d/.test(forgotPassword);
+    const hasSpecialChar = /[^a-zA-Z0-9]/.test(forgotPassword);
+    if (!hasDigit || !hasSpecialChar) {
+      showWarning('Password must contain at least one digit and one special character.');
+      return;
+    }
+    if (forgotPassword !== forgotConfirmPassword) {
+      showWarning('Passwords do not match.');
+      return;
+    }
+    
+    setForgotLoading(true);
+    try {
+      const res = await api.post('/auth/forgot-password', { 
+        email: forgotEmail, 
+        password: forgotPassword 
+      });
+      if (res.data.success) {
+        showSuccess(res.data.message || 'Password updated successfully! You can now log in.');
+        setForgotModalOpen(false);
+        setForgotEmail('');
+        setForgotPassword('');
+        setForgotConfirmPassword('');
+      }
+    } catch (err) {
+      const errMsg = err.response?.data?.message || 'Failed to update password. Please try again.';
+      showError(errMsg);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchClubs = async () => {
@@ -55,18 +102,34 @@ const Login = () => {
       return false;
     }
 
-    if (password.length < 6) {
-      showWarning('Password must be at least 6 characters long.');
-      return false;
-    }
-
     if (!isLoginTab) {
+      if (password.length < 6) {
+        showWarning('Password must be at least 6 characters long.');
+        return false;
+      }
+
+      const hasDigit = /\d/.test(password);
+      const hasSpecialChar = /[^a-zA-Z0-9]/.test(password);
+      if (!hasDigit || !hasSpecialChar) {
+        showWarning('Password must contain at least one digit and one special character.');
+        return false;
+      }
+
       if (!name) {
         showWarning('Please enter your full name.');
         return false;
       }
       if (!enrollment) {
         showWarning('Student enrollment ID is required.');
+        return false;
+      }
+      if (!formData.phone) {
+        showWarning('Phone number is required.');
+        return false;
+      }
+      const digitsOnly = formData.phone.replace(/\D/g, '');
+      if (digitsOnly.length < 10) {
+        showWarning('Phone number must have at least 10 digits.');
         return false;
       }
       if (!email.toLowerCase().endsWith('@medicaps.ac.in')) {
@@ -221,9 +284,23 @@ const Login = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label style={{ ...labelStyle, marginBottom: '6px' }}><Lock size={14} /> Password</label>
                 {isLoginTab && (
-                  <a href="#forgot" style={{ fontSize: '0.78rem', color: '#0f3057', fontWeight: 600, textDecoration: 'none', marginBottom: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setForgotModalOpen(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '0.78rem',
+                      color: '#0f3057',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      textDecoration: 'none',
+                      marginBottom: '6px',
+                      padding: 0
+                    }}
+                  >
                     Forgot password?
-                  </a>
+                  </button>
                 )}
               </div>
               <div style={{ position: 'relative' }}>
@@ -423,6 +500,137 @@ const Login = () => {
         </div>
 
       </div>
+
+      {forgotModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="glass-panel" style={{
+            width: '90%',
+            maxWidth: '440px',
+            padding: '30px',
+            borderRadius: '16px',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: '0 20px 40px rgba(15, 48, 87, 0.25)',
+            position: 'relative',
+            background: 'var(--panel-bg)',
+            backdropFilter: 'blur(12px)'
+          }}>
+            <button
+              onClick={() => { 
+                setForgotModalOpen(false); 
+                setForgotEmail(''); 
+                setForgotPassword('');
+                setForgotConfirmPassword('');
+              }}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)'
+              }}
+            >
+              <X size={20} />
+            </button>
+
+            <h3 style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--text-primary)', marginBottom: '8px', textAlign: 'left' }}>
+              Reset Password Directly
+            </h3>
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '20px', textAlign: 'left' }}>
+              Enter your email address and your new password to update your password in the database directly.
+            </p>
+
+            <form onSubmit={handleForgotPasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <Mail size={14} /> Email Address
+                </label>
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="e.g. student@medicaps.ac.in"
+                  className="glass-input"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <Lock size={14} /> New Password
+                </label>
+                <input
+                  type="password"
+                  value={forgotPassword}
+                  onChange={(e) => setForgotPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  className="glass-input"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <Lock size={14} /> Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={forgotConfirmPassword}
+                  onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="glass-input"
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => { 
+                    setForgotModalOpen(false); 
+                    setForgotEmail(''); 
+                    setForgotPassword('');
+                    setForgotConfirmPassword('');
+                  }}
+                  className="btn-secondary"
+                  style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '0.9rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    background: 'linear-gradient(135deg, #0f3057 0%, #8c1d40 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  disabled={forgotLoading}
+                >
+                  {forgotLoading ? 'Updating...' : 'Save Password'} <ArrowRight size={16} />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
